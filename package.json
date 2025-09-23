@@ -1,0 +1,19 @@
+{
+  "name": "ollama",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "apollo-boost": "^0.4.9",
+    "graphql": "^15.10.1",
+    "graphql-request": "^7.2.0",
+    "mammoth": "^1.11.0",
+    "pdf-parse": "^1.1.1"
+  }
+}
