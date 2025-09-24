@@ -1,10 +1,13 @@
 #!/usr/bin/env node
-// Direct Ollama client — supports .md/.txt/.json, .docx (mammoth), and .pdf (pdf-parse).
+// Direct Ollama client — supports .md/.txt/.json, .docx (mammoth), .pdf (pdf-parse), and .pptx (zip+XML).
 // Node 18+ required (global fetch).
+
 const fs = require('node:fs');
 const path = require('node:path');
 const mammoth = require('mammoth');
 const pdfParse = require('pdf-parse');
+const unzipper = require('unzipper');
+const { XMLParser } = require('fast-xml-parser');
 
 const OLLAMA_URL =
   process.env.OLLAMA_URL || 'http://127.0.0.1:11434/api/generate';
@@ -29,20 +32,80 @@ for (let i = 0; i < args.length; i++) {
   if (args[i] === '--file' && i + 1 < args.length) files.push(args[i + 1]);
 }
 
-// ---- Helpers ----
+// ---------------- PPTX extraction ----------------
+async function extractTextFromPptx(absPath) {
+  const dir = await unzipper.Open.file(absPath);
+  const slides = dir.files
+    .filter(
+      (f) => f.path.startsWith('ppt/slides/slide') && f.path.endsWith('.xml')
+    )
+    .sort((a, b) => {
+      const na = parseInt(a.path.match(/slide(\d+)\.xml$/)?.[1] || '0', 10);
+      const nb = parseInt(b.path.match(/slide(\d+)\.xml$/)?.[1] || '0', 10);
+      return na - nb;
+    });
+
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix: '',
+    // keep tag names like 'a:t'
+    preserveOrder: false,
+  });
+
+  // Recursively collect all <a:t> text nodes
+  const collectText = (node, lines) => {
+    if (node == null) return;
+    if (Array.isArray(node)) {
+      for (const n of node) collectText(n, lines);
+      return;
+    }
+    if (typeof node === 'object') {
+      for (const k of Object.keys(node)) {
+        const v = node[k];
+        if (k === 'a:t') {
+          if (typeof v === 'string') lines.push(v);
+          else if (v != null) lines.push(String(v));
+        } else {
+          collectText(v, lines);
+        }
+      }
+    }
+  };
+
+  const out = [];
+  for (let idx = 0; idx < slides.length; idx++) {
+    const slide = slides[idx];
+    const buf = await slide.buffer();
+    const xml = buf.toString('utf8');
+    const js = parser.parse(xml);
+    const lines = [];
+    collectText(js, lines);
+
+    const text = lines
+      .map((s) => s.replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+      .join('\n');
+
+    out.push(`-- Slide ${idx + 1} --\n${text}`);
+  }
+
+  return out.join('\n\n');
+}
+
+// ---------------- Generic readers ----------------
 async function readAsText(absPath) {
   const lower = absPath.toLowerCase();
   if (lower.endsWith('.docx')) {
-    // Word documents
     const { value } = await mammoth.extractRawText({ path: absPath });
     return value || '';
   } else if (lower.endsWith('.pdf')) {
-    // PDFs (text-based; scanned PDFs need OCR first)
     const data = fs.readFileSync(absPath);
     const { text } = await pdfParse(data);
     return text || '';
+  } else if (lower.endsWith('.pptx')) {
+    return await extractTextFromPptx(absPath);
   } else {
-    // Plain text / markdown / json, etc.
+    // .md, .txt, .json, etc.
     return fs.readFileSync(absPath, 'utf8');
   }
 }
@@ -66,6 +129,7 @@ async function readFilesCombined(filePaths) {
   return parts.join('\n\n');
 }
 
+// ---------------- Ollama calls ----------------
 async function callOnce({ model, prompt }) {
   const res = await fetch(OLLAMA_URL, {
     method: 'POST',
@@ -110,7 +174,7 @@ async function callStream({ model, prompt }) {
   }
 }
 
-// ---- Main ----
+// ---------------- Main ----------------
 (async () => {
   try {
     let combinedText = '';
@@ -137,7 +201,7 @@ async function callStream({ model, prompt }) {
         'No prompt text found.\n' +
           'Provide one of:\n' +
           '  • --prompt "Summarise this"\n' +
-          '  • --file /path/to/doc (repeatable; supports .docx, .pdf, .md, .txt)\n' +
+          '  • --file /path/to/doc (repeatable; supports .docx, .pdf, .pptx, .md, .txt)\n' +
           'Optional:\n' +
           '  • --task "Summarise into key points and action items"\n'
       );

@@ -21,6 +21,8 @@ The CLI takes in 3 parameters
 
 ## Examples
 
+The tool will accept full path but also relative paths also depending on where it is run from - installing it globally helps with this.
+
 ```
 node ollama_client.js --model mistral \
   --file "/Users/donaliai/Downloads/CV_2025.pdf" \
@@ -29,6 +31,25 @@ node ollama_client.js --model mistral \
 
 ```
 node ollama_client.js --model mistral \
-  --file "/Users/donaliai/Downloads/QA_Manager_FTC.docx" \
+  --file "./QA_Manager_FTC.docx" \
   --task "Summarise the document to pick out the key responsibilities for the role"
 ```
+
+## Installation
+
+```
+npm install
+
+```
+
+## Global installation
+
+```
+To utilize the tool globally you can `npm link` and then you can run from anywhere
+```
+
+## Models Installation
+
+Models you download get put into .ollama/models
+
+Note: They can be very large so only download what models you need on your machine as remember everything is local.
