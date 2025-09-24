@@ -25,13 +25,13 @@ The tool will accept full path but also relative paths also depending on where i
 
 ```
 node ollama_client.js --model mistral \
-  --file "/Users/donaliai/Downloads/CV_2025.pdf" \
+  --file "/Users/user/Downloads/CV_2025.pdf" \
   --task "Summarise the document please are they suitable for a QA role"
 ```
 
 ```
 node ollama_client.js --model mistral \
-  --file "./QA_Manager_FTC.docx" \
+  --file "./QA_Manager.docx" \
   --task "Summarise the document to pick out the key responsibilities for the role"
 ```
 
