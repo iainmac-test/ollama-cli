@@ -37,8 +37,12 @@ node ollama_client.js --model mistral \
 
 ## Installation
 
+Install the dependencies and link to have global access on the PATH
+
 ```
 npm install
+
+npm link 
 
 ```
 
